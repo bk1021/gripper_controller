@@ -7,16 +7,10 @@ cd /path/to/ros2_ws/src
 git clone git@github.com:bk1021/gripper_controller.git
 cd gripper_controller
 ```
-2) Install dependencies via `apt`
+2) Install dependencies
 ```
 sudo apt update
 sudo apt install libgpiod-dev libyaml-cpp-dev
-```
-> or if you prefer `rosdep`
-```
-sudo rosdep init # if never done before
-rosdep update
-rosdep install --from-paths src --ignore-src -y
 ```
 3) build
 ```
