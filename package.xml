@@ -11,11 +11,6 @@
 
   <depend>rclcpp</depend>
   <depend>std_srvs</depend>
-  
-  <build_depend>libgpiod-dev</build_depend>
-  <exec_depend>libgpiod-dev</exec_depend>
-  <build_depend>libyaml-cpp-dev</build_depend>
-  <exec_depend>libyaml-cpp-dev</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
