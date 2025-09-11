@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.8)
 project(gripper_controller)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
@@ -32,7 +35,7 @@ install(TARGETS gripper_controller
 # install servo control script
 add_executable(servo_control src/servo_control_main.cpp src/servo_control.cpp)
 target_include_directories(servo_control PRIVATE include ${GPIOD_INCLUDE_DIR})
-target_link_libraries(servo_control yaml-cpp ${GPIOD_LIB})
+target_link_libraries(servo_control yaml-cpp ${GPIOD_LIB} pthread)
 
 install(TARGETS servo_control
   DESTINATION lib/${PROJECT_NAME})
