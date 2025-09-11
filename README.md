@@ -4,7 +4,7 @@
 1) Clone this package
 ```
 cd /path/to/ros2_ws/src
-git clone git@github.com:bk1021/gripper_controller.git
+git clone https://github.com/bk1021/gripper_controller.git
 cd gripper_controller
 ```
 2) Install dependencies
