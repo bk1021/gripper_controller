@@ -47,3 +47,4 @@ Run an interactive console for servo motor angle tuning
 ```
 ros2 launch gripper_controller gripper.launch.py tune:=true
 ```
+After determining opening and closing angle for gripper, update them in `config/gripper_params.yaml`, rebuild after edit.
