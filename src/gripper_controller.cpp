@@ -7,7 +7,7 @@
 using namespace std::chrono_literals;
 
 GripperController::GripperController() 
-    : Node("gripper_controller"), running_(false), target_angle_(90)
+    : Node("gripper_controller"), running_(false)
 {
     // Declare ROS parameters
     this->declare_parameter("bgthread", false);
