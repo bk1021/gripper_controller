@@ -43,7 +43,7 @@ ros2 topic pub /gripper_angle std_msgs/msg/Int32 "{data: 90}"
 ```
 
 ## Servo angle tuning
-Run a interactive console for servo motor angle tuning 
+Run an interactive console for servo motor angle tuning 
 ```
 ros2 launch gripper_controller gripper.launch.py tune:=true
 ```
