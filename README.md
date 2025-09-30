@@ -20,8 +20,13 @@ colcon build --packages-select gripper_controller
 
 ## Usage
 > Note: Check servo configuration in `config/gripper_params.yaml`, rebuild after edit
+Run `gripper_controller` node in default mode (PWM signal is send for 100 * `period` s) 
 ```
 ros2 launch gripper_controller gripper.launch.py
+```
+For using continuous PWM signal control
+```
+ros2 launch gripper_controller gripper.launch.py bgthread:=true
 ```
 To open gripper
 ```
@@ -33,7 +38,7 @@ ros2 service call /set_gripper std_srvs/srv/SetBool "{data: false}"
 ```
 
 ## Servo angle tuning
-Runs a standalone servo tuning program that reads config and lets you input angles interactively
+Run a interactive console for servo motor angle tuning 
 ```
-ros2 run gripper_controller servo_control
+ros2 launch gripper_controller gripper.launch.py tune:=true
 ```
