@@ -12,12 +12,11 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 # Look for the gpiod library
 find_library(GPIOD_LIB gpiod)
 find_path(GPIOD_INCLUDE_DIR gpiod.h)
-
-find_package(yaml-cpp REQUIRED)
 
 if(NOT GPIOD_LIB OR NOT GPIOD_INCLUDE_DIR)
   message(FATAL_ERROR "libgpiod-dev not found. Please install with: sudo apt install libgpiod-dev")
@@ -25,19 +24,11 @@ endif()
 
 # install node
 add_executable(gripper_controller src/main.cpp src/gripper_controller.cpp)
-ament_target_dependencies(gripper_controller rclcpp std_srvs)
+ament_target_dependencies(gripper_controller rclcpp std_srvs std_msgs)
 target_include_directories(gripper_controller PRIVATE include ${GPIOD_INCLUDE_DIR})
 target_link_libraries(gripper_controller ${GPIOD_LIB})
 
 install(TARGETS gripper_controller
-  DESTINATION lib/${PROJECT_NAME})
-
-# install servo control script
-add_executable(servo_control src/servo_control_main.cpp src/servo_control.cpp)
-target_include_directories(servo_control PRIVATE include ${GPIOD_INCLUDE_DIR})
-target_link_libraries(servo_control yaml-cpp ${GPIOD_LIB} pthread)
-
-install(TARGETS servo_control
   DESTINATION lib/${PROJECT_NAME})
 
 # install config and launch files

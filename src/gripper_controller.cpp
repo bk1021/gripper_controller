@@ -2,12 +2,16 @@
 #include <chrono>
 #include <thread>
 #include <algorithm>
+#include <sstream>
 
 using namespace std::chrono_literals;
 
-GripperController::GripperController() : Node("gripper_controller")
+GripperController::GripperController() 
+    : Node("gripper_controller"), running_(false), target_angle_(90)
 {
-    // Declare parameters with defaults
+    // Declare ROS parameters
+    this->declare_parameter("bgthread", false);
+    this->declare_parameter("tune", false);
     this->declare_parameter("open_angle", 38);
     this->declare_parameter("close_angle", 3);
     this->declare_parameter("gpio_chip", "/dev/gpiochip1");
@@ -16,6 +20,9 @@ GripperController::GripperController() : Node("gripper_controller")
     this->declare_parameter("min_us", 500);
     this->declare_parameter("max_us", 2500);
 
+    // Get parameters
+    use_bgthread_ = this->get_parameter("bgthread").as_bool();
+    tuning_mode_ = this->get_parameter("tune").as_bool();
     open_angle_ = this->get_parameter("open_angle").as_int();
     close_angle_ = this->get_parameter("close_angle").as_int();
     gpio_chip_ = this->get_parameter("gpio_chip").as_string();
@@ -24,40 +31,91 @@ GripperController::GripperController() : Node("gripper_controller")
     min_us_ = this->get_parameter("min_us").as_int();
     max_us_ = this->get_parameter("max_us").as_int();
 
-    // Init GPIO
-    chip_ = gpiod_chip_open(gpio_chip_.c_str());
-    if (!chip_) {
-      RCLCPP_FATAL(this->get_logger(), "Failed to open gpio chip: %s", gpio_chip_.c_str());
-      rclcpp::shutdown();
-      return;
-    }
-    line_ = gpiod_chip_get_line(chip_, gpio_line_);
-    if (!line_) {
-      RCLCPP_FATAL(this->get_logger(), "Failed to get gpio line %d from %s", gpio_line_, gpio_chip_.c_str());
-      rclcpp::shutdown();
-      return;
-    }
-    if (gpiod_line_request_output(line_, "gripper", 0) < 0) {
-      RCLCPP_FATAL(this->get_logger(), "Failed to request line as output");
-      rclcpp::shutdown();
-      return;
+    // Initialize GPIO
+    initialize_gpio();
+
+    // Initialize ROS interfaces based on mode
+    if (!tuning_mode_) {
+        initialize_ros_interfaces();
     }
 
-    // Create service
-    service_ = this->create_service<std_srvs::srv::SetBool>(
-      "set_gripper",
-      std::bind(&GripperController::handle_request, this,
-                std::placeholders::_1, std::placeholders::_2));
+    // Set initial target angle
+    target_angle_ = open_angle_;
 
-    RCLCPP_INFO(this->get_logger(), "GripperController ready. Service: /set_gripper");
+    // Start background thread if requested
+    if (use_bgthread_ && !tuning_mode_) {
+        running_ = true;
+        pwm_thread_ = std::thread(&GripperController::pwm_loop, this);
+        RCLCPP_INFO(this->get_logger(), "GripperController running in background thread mode");
+    }
+
+    if (tuning_mode_) {
+        RCLCPP_INFO(this->get_logger(), "GripperController running in tuning mode");
+    } else {
+        RCLCPP_INFO(this->get_logger(), "GripperController ready. Mode: %s", 
+                    use_bgthread_ ? "background thread" : "normal");
+    }
 }
 
 GripperController::~GripperController()
 {
-    // cleanup GPIO
-    gpiod_line_set_value(line_, 0);
-    gpiod_line_release(line_);
-    gpiod_chip_close(chip_);
+    // Stop background thread if running
+    if (running_) {
+        running_ = false;
+        if (pwm_thread_.joinable()) {
+            pwm_thread_.join();
+        }
+    }
+
+    // Cleanup GPIO
+    if (line_) {
+        gpiod_line_set_value(line_, 0);
+        gpiod_line_release(line_);
+    }
+    if (chip_) {
+        gpiod_chip_close(chip_);
+    }
+}
+
+void GripperController::initialize_gpio()
+{
+    chip_ = gpiod_chip_open(gpio_chip_.c_str());
+    if (!chip_) {
+        RCLCPP_FATAL(this->get_logger(), "Failed to open gpio chip: %s", gpio_chip_.c_str());
+        rclcpp::shutdown();
+        return;
+    }
+
+    line_ = gpiod_chip_get_line(chip_, gpio_line_);
+    if (!line_) {
+        RCLCPP_FATAL(this->get_logger(), "Failed to get gpio line %d from %s", 
+                     gpio_line_, gpio_chip_.c_str());
+        rclcpp::shutdown();
+        return;
+    }
+
+    if (gpiod_line_request_output(line_, "gripper", 0) < 0) {
+        RCLCPP_FATAL(this->get_logger(), "Failed to request line as output");
+        rclcpp::shutdown();
+        return;
+    }
+}
+
+void GripperController::initialize_ros_interfaces()
+{
+    // Create service for gripper control
+    service_ = this->create_service<std_srvs::srv::SetBool>(
+        "set_gripper",
+        std::bind(&GripperController::handle_gripper_request, this,
+            std::placeholders::_1, std::placeholders::_2));
+
+    // Create subscription for angle commands
+    angle_sub_ = this->create_subscription<std_msgs::msg::Int32>(
+        "gripper_angle", 10,
+        std::bind(&GripperController::handle_angle_command, this,
+                  std::placeholders::_1));
+
+    RCLCPP_INFO(this->get_logger(), "ROS interfaces initialized. Service: /set_gripper, Topic: /gripper_angle");
 }
 
 double GripperController::angle_to_high_s(int angle)
@@ -69,8 +127,7 @@ double GripperController::angle_to_high_s(int angle)
 void GripperController::send_pulse(int angle)
 {
     double high_s = angle_to_high_s(angle);
-    for (int i = 0; i < 100; i++)
-    {
+    for (int i = 0; i < 100; i++) {
         gpiod_line_set_value(line_, 1);
         std::this_thread::sleep_for(std::chrono::duration<double>(high_s));
         gpiod_line_set_value(line_, 0);
@@ -78,18 +135,92 @@ void GripperController::send_pulse(int angle)
     }
 }
 
-void GripperController::handle_request(
-      const std_srvs::srv::SetBool::Request::SharedPtr request,
-      std_srvs::srv::SetBool::Response::SharedPtr response)
+void GripperController::pwm_loop()
 {
-    int target_angle = request->data ? open_angle_ : close_angle_;
-    RCLCPP_INFO(this->get_logger(), "Moving gripper to %s (%d°)",
-                request->data ? "OPEN" : "CLOSE", target_angle);
+    while (running_) {
+        double high_s = angle_to_high_s(target_angle_);
+        gpiod_line_set_value(line_, 1);
+        std::this_thread::sleep_for(std::chrono::duration<double>(high_s));
+        gpiod_line_set_value(line_, 0);
+        std::this_thread::sleep_for(std::chrono::duration<double>(period_ - high_s));
+    }
+}
 
-    send_pulse(target_angle);
+void GripperController::handle_gripper_request(
+    const std_srvs::srv::SetBool::Request::SharedPtr request,
+    std_srvs::srv::SetBool::Response::SharedPtr response)
+{
+    int new_angle = request->data ? open_angle_ : close_angle_;
+    
+    RCLCPP_INFO(this->get_logger(), "Moving gripper to %s (%d°)",
+                request->data ? "OPEN" : "CLOSE", new_angle);
+
+    if (use_bgthread_) {
+        // In background thread mode, just update the target
+        target_angle_ = new_angle;
+    } else {
+        // In normal mode, send pulse directly
+        send_pulse(new_angle);
+    }
 
     response->success = true;
     response->message = request->data ? "Gripper opened" : "Gripper closed";
 }
 
+void GripperController::handle_angle_command(const std_msgs::msg::Int32::SharedPtr msg)
+{
+    int angle = std::clamp(msg->data, 0, 180);
+    
+    RCLCPP_INFO(this->get_logger(), "Setting gripper angle to %d°", angle);
 
+    if (use_bgthread_) {
+        target_angle_ = angle;
+    } else {
+        send_pulse(angle);
+    }
+}
+
+void GripperController::run_tuning_mode()
+{
+    // Start PWM thread for tuning mode
+    running_ = true;
+    pwm_thread_ = std::thread(&GripperController::pwm_loop, this);
+
+    std::cout << "=== Gripper Tuning Mode ===" << std::endl;
+    std::cout << "Enter servo angle [0-180] repeatedly. Type 'quit' or Ctrl+C to exit." << std::endl;
+    std::cout << "Current parameters:" << std::endl;
+    std::cout << "  GPIO: " << gpio_chip_ << ":" << gpio_line_ << std::endl;
+    std::cout << "  Period: " << period_ << "s" << std::endl;
+    std::cout << "  PWM range: " << min_us_ << "-" << max_us_ << "μs" << std::endl;
+    std::cout << "  Open angle: " << open_angle_ << "°" << std::endl;
+    std::cout << "  Close angle: " << close_angle_ << "°" << std::endl;
+    std::cout << std::endl;
+
+    while (rclcpp::ok()) {
+        std::cout << "Angle> ";
+        std::string line_input;
+        if (!std::getline(std::cin, line_input)) break;
+
+        if (line_input == "quit" || line_input == "exit") {
+            break;
+        }
+
+        std::istringstream iss(line_input);
+        int angle;
+        if (!(iss >> angle) || angle < 0 || angle > 180) {
+            std::cout << "Invalid input. Enter integer 0-180, or 'quit' to exit." << std::endl;
+            continue;
+        }
+
+        target_angle_ = angle;
+        std::cout << "Setting angle to " << angle << "°..." << std::endl;
+    }
+
+    // Stop PWM thread
+    running_ = false;
+    if (pwm_thread_.joinable()) {
+        pwm_thread_.join();
+    }
+    
+    std::cout << "Tuning mode ended." << std::endl;
+}
