@@ -12,12 +12,6 @@ def generate_launch_description():
         default_value='false',
         description='Use background thread for PWM control'
     )
-    
-    tune_arg = DeclareLaunchArgument(
-        'tune',
-        default_value='false',
-        description='Start in tuning mode for servo angle adjustment'
-    )
 
     # Get package directory for parameter file
     config_dir = os.path.join(get_package_share_directory('gripper_controller'), 'config')
@@ -25,7 +19,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         bgthread_arg,
-        tune_arg,
         Node(
             package="gripper_controller",
             executable="gripper_controller",
@@ -33,8 +26,7 @@ def generate_launch_description():
             parameters=[
                 param_file,
                 {
-                    'bgthread': LaunchConfiguration('bgthread'),
-                    'tune': LaunchConfiguration('tune')
+                    'bgthread': LaunchConfiguration('bgthread')
                 }
             ],
             output="screen"

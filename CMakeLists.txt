@@ -31,6 +31,11 @@ target_link_libraries(gripper_controller ${GPIOD_LIB})
 install(TARGETS gripper_controller
   DESTINATION lib/${PROJECT_NAME})
 
+# install Python scripts
+install(PROGRAMS
+  scripts/gripper_gui.py
+  DESTINATION lib/${PROJECT_NAME})
+
 # install config and launch files
 install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME})

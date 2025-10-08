@@ -15,12 +15,9 @@ public:
     GripperController();
     ~GripperController();
 
-    void run_tuning_mode();
-
 private:
     // ROS argument/parameters
     bool use_bgthread_;
-    bool tuning_mode_;
     int open_angle_, close_angle_, gpio_line_, min_us_, max_us_;
     double period_;
     std::string gpio_chip_;
