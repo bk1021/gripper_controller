@@ -5,5 +5,7 @@ gripper_controller:
     gpio_chip: "/dev/gpiochip1"
     gpio_line: 14
     period: 0.02       # seconds
-    min_us: 500        # microseconds for 0 degrees
-    max_us: 2500       # microseconds for 180 degrees
+    min_us: 500        # microseconds for min_angle
+    max_us: 2500       # microseconds for max_angle
+    min_angle: 0       # degrees
+    max_angle: 270     # degrees
