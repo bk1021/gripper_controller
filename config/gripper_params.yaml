@@ -1,7 +1,7 @@
 gripper_controller:
   ros__parameters:
-    open_angle: 38     # degrees
-    close_angle: 3     # degrees
+    open_angle: 42     # degrees
+    close_angle: 5     # degrees
     gpio_chip: "/dev/gpiochip1"
     gpio_line: 14
     period: 0.02       # seconds
