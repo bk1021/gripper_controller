@@ -18,6 +18,8 @@ GripperController::GripperController()
     this->declare_parameter("period", 0.02);
     this->declare_parameter("min_us", 500);
     this->declare_parameter("max_us", 2500);
+    this->declare_parameter("min_angle", 0);
+    this->declare_parameter("max_angle", 270);
 
     // Get parameters
     use_bgthread_ = this->get_parameter("bgthread").as_bool();
@@ -28,6 +30,8 @@ GripperController::GripperController()
     period_ = this->get_parameter("period").as_double();
     min_us_ = this->get_parameter("min_us").as_int();
     max_us_ = this->get_parameter("max_us").as_int();
+    min_angle_ = this->get_parameter("min_angle").as_int();
+    max_angle_ = this->get_parameter("max_angle").as_int();
 
     // Initialize GPIO
     initialize_gpio();
@@ -112,7 +116,10 @@ void GripperController::initialize_ros_interfaces()
 
 double GripperController::angle_to_high_s(int angle)
 {
-    double us = min_us_ + (max_us_ - min_us_) * std::clamp(angle, 0, 180) / 180.0;
+    double us = std::clamp(
+        min_us_ + (max_us_ - min_us_) * static_cast<double>(std::clamp(angle, min_angle, max_angle)) / (max_angle - min_angle), 
+        static_cast<double>(min_us_),
+        static_cast<double>(max_us_));
     return us / 1e6;
 }
 
@@ -161,7 +168,7 @@ void GripperController::handle_gripper_request(
 
 void GripperController::handle_angle_command(const std_msgs::msg::Int32::SharedPtr msg)
 {
-    int angle = std::clamp(msg->data, 0, 180);
+    int angle = std::clamp(msg->data, min_angle_, max_angle_);
     
     RCLCPP_INFO(this->get_logger(), "Setting gripper angle to %d°", angle);
 
