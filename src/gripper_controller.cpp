@@ -117,7 +117,7 @@ void GripperController::initialize_ros_interfaces()
 double GripperController::angle_to_high_s(int angle)
 {
     double us = std::clamp(
-        min_us_ + (max_us_ - min_us_) * static_cast<double>(std::clamp(angle, min_angle, max_angle)) / (max_angle - min_angle), 
+        min_us_ + (max_us_ - min_us_) * static_cast<double>(std::clamp(angle, min_angle_, max_angle_)) / (max_angle_ - min_angle_), 
         static_cast<double>(min_us_),
         static_cast<double>(max_us_));
     return us / 1e6;
