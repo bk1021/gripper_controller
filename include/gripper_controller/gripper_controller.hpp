@@ -18,7 +18,7 @@ public:
 private:
     // ROS argument/parameters
     bool use_bgthread_;
-    int open_angle_, close_angle_, gpio_line_, min_us_, max_us_;
+    int open_angle_, close_angle_, gpio_line_, min_us_, max_us_, min_angle_, max_angle_;
     double period_;
     std::string gpio_chip_;
     
