@@ -37,14 +37,11 @@ To close gripper
 ```
 ros2 service call /set_gripper std_srvs/srv/SetBool "{data: false}"
 ```
-Direct angle control (0 - 180 deg) (not recommended)
+
+## Servo angle tuning
+Direct angle control (0 - 270 deg)
 ```
 ros2 topic pub /gripper_angle std_msgs/msg/Int32 "{data: 90}"
 ```
 
-## Servo angle tuning
-Run an interactive console for servo motor angle tuning 
-```
-ros2 launch gripper_controller gripper.launch.py tune:=true
-```
 After determining opening and closing angle for gripper, update them in `config/gripper_params.yaml`, rebuild after edit.
